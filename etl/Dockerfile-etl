@@ -1,0 +1,18 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y curl less sqlite3
+
+COPY requirements-etl.txt ./requirements-etl.txt
+RUN pip install --upgrade pip && \
+    pip install virtualenv && virtualenv venv && \
+    venv/bin/pip install -r requirements-etl.txt
+
+COPY lib ./lib
+
+# point python to venv/bin/python
+ENV PATH="/app/venv/bin:$PATH"
+
+CMD sleep 1h

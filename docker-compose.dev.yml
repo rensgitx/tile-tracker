@@ -1,0 +1,6 @@
+services:
+  app:
+    env_file: .env.dev
+
+  etl:
+    env_file: .env.dev
