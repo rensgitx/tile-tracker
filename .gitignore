@@ -1,0 +1,6 @@
+gpx
+venv*
+.env
+db/db.sqlite3*
+__pycache__
+*.old*

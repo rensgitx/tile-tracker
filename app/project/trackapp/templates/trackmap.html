@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Where's Tile?</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        #map
+        .leaflet-div-icon {
+            background: transparent;
+            border: none;
+        }
+        .marker-number {
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            border: 2px solid white;
+        }
+    </style>
+</head>
+<body>
+    <form method="GET">
+        <input type="text" name="name" placeholder="Tile Name" value="{{ request.GET.name }}">
+        <button type="submit">Filter Name</button>
+        <input type="text" name="from_time" placeholder="From Time" value="{{ request.GET.from_time }}">
+        <button type="submit">Filter From Time</button>
+        <input type="text" name="to_time" placeholder="To Time" value="{{ request.GET.to_time }}">
+        <button type="submit">Filter To Time</button>
+    </form>
+    <div id="map" style="height: 75vh; max-height: 75vh; width: 75%; max-width: 75%;"></div>
+    
+    <script>
+        
+        var map = L.map('map').setView([43, 70], 10);
+
+        const trackData = {{ track_data|safe }};
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Marker color based on state
+        var stateColors = {
+            "Settle": "blue",
+            "Unsettle": "orange",
+            "Pending": "grey"
+        };
+        trackData.forEach(function(point) {
+            var markerHtml = `
+                <div class="marker-number" style="background:${stateColors[point.state]};">
+                    ${point.segment_order}
+                </div>
+            `;
+            var icon = L.divIcon({
+                html: markerHtml,
+                className: "leaflet-div-icon",
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+            L.marker([point.latitude, point.longitude], { icon: icon })
+                .addTo(map)
+                .bindPopup(`${point.name}<br>${point.state}, Segment: ${point.segment_order}<br>${point.start_utc} to ${point.end_utc}<br>Duration: ${point.duration}`);
+        });
+        
+        // Put flags on places of interest
+        const pois = {{ pois|safe }};  // Inject points from the view
+        const flagHtml = `<i class="fa-solid fa-flag" style="color:red; font-size:20px;"></i>`;
+        const flagIcon = L.divIcon({
+            html: flagHtml,
+            className: "leaflet-div-icon",
+            iconSize: [20, 20],
+            iconAnchor: [0, 0]
+        });
+
+        pois.forEach(point => {
+            L.marker([point.latitude, point.longitude], {icon: flagIcon})
+                .addTo(map)
+                .bindPopup(`<b>${point.name}</b><br>${point.address}`)
+                .openPopup();
+        });
+
+        // Adjust the map view to fit all trackData markers
+        const markers = trackData.map(point => [point.latitude, point.longitude]);
+        if (markers.length) {
+            const bounds = L.latLngBounds(markers);
+            map.fitBounds(bounds);
+        }
+    </script>
+</body>
+</html>

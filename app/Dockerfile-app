@@ -1,0 +1,30 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ARG APP_PORT=8080
+ENV APP_PORT=8080
+
+RUN apt-get update \
+    && apt-get install -y curl less procps \
+    && apt-get install -y sqlite3 gdal-bin libgdal32 \
+    && apt-get install -y libsqlite3-mod-spatialite \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements-app.txt ./requirements-app.txt
+
+RUN pip install --upgrade pip && \
+    pip install virtualenv && virtualenv venv && \
+    venv/bin/pip install -r requirements-app.txt
+
+# point python to venv/bin/python
+ENV PATH="/app/venv/bin:$PATH"
+
+COPY project ./project
+
+RUN chmod +x ./project/scripts/setup-db.sh && \
+    chmod +x ./project/scripts/run-server.sh
+    
+EXPOSE ${APP_PORT}
+
+CMD ./project/scripts/setup-db.sh && ./project/scripts/run-server.sh

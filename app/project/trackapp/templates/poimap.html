@@ -1,0 +1,57 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Where's Tile?</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+</head>
+<body>
+    <h2>Tile Latest Location</h2>
+    <form method="GET">
+        <input type="text" name="name" placeholder="Tile Name" value="{{ request.GET.name }}">
+        <button type="submit">Filter</button>
+    </form>
+    <div id="map" style="height: 75vh; max-height: 75vh; width: 75%; max-width: 75%;"></div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([0, 0], 2);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        const points = {{ points|safe }};  // Inject points from the view
+
+        points.forEach(point => {
+            L.marker([point.latitude, point.longitude])
+                .addTo(map)
+                .bindPopup(`<b>${point.name}</b><br>${point.address}`)
+                .openPopup();
+        });
+
+        const tileIcon = L.icon({
+            iconUrl: '{% static "trackapp/images/stickman.png" %}',
+            iconSize:     [30, 40],
+            iconAnchor:   [0, 0],
+            popupAnchor:  [30, -2]
+        });
+
+        const userloc = {{ user_location|safe }};
+        L.marker([userloc.latitude, userloc.longitude], {icon: tileIcon})
+            .addTo(map)
+            .bindPopup(`<b>${userloc.name}</b><br>Last seen: ${userloc.last_seen_utc}`)
+            .openPopup();
+
+        // Adjust the map view to fit all markers
+        const markers = points.map(point => [point.latitude, point.longitude]);
+        if (markers.length) {
+            const bounds = L.latLngBounds(markers);
+            map.fitBounds(bounds);
+        }
+
+    </script>
+</body>
+</html>
