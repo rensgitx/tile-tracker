@@ -18,11 +18,12 @@ jobs:
           echo "Changed directories: $changed_dirs"
           if [[ -z "$changed_dirs" ]]; then 
             echo "No changed projects found."
-            exit 0
+            echo "projects=[]" >> $GITHUB_OUTPUT
+          else
+            project_json=$(echo "$changed_dirs" | jq -R . | jq -s . | jq -c .)
+            echo "Changed dirs: $project_json"
+            echo "projects=$project_json" >> $GITHUB_OUTPUT
           fi
-          project_json=$(echo "$changed_dirs" | jq -R . | jq -s . | jq -c .)
-          echo "Changed dirs: $project_json"
-          echo "projects=$project_json" >> $GITHUB_OUTPUT
   lint:
     runs-on: ubuntu-latest
     needs: list-changed-directories
