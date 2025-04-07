@@ -1,0 +1,32 @@
+# Let's do a ci based on the project
+
+on: [push]
+
+jobs:
+  list-changed-directories:
+    runs-on: ubuntu-latest
+
+    outputs:
+      changed-directories: ${{ steps.list-changed-directories.outputs.changed-directories }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Ensure main is fetched for comparison
+      - run: git fetch origin main
+
+      - run: |
+          echo "The name of my branch is ${{ github.ref }} and the repository is ${{ github.repository }}."
+          echo "List files in repository:"
+          ls ${{ github.workspace }}
+          echo "Show git diff (debug)"
+          git diff origin/main --name-only
+
+      - uses: sankichi92/list-changed-directories@v1
+        id: list-changed-directories
+        with:
+          target-file: "**/*"
+
+      - run: |
+          echo "Changed directories from action step are: ${{ steps.list-changed-directories.outputs.changed-directories }}"
+          echo "Done Test."
