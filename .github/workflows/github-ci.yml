@@ -15,8 +15,6 @@ jobs:
         id: list-changed-projects
         run: |
           echo "Current branch: ${{ github.ref }}."
-          git fetch origin main
-          git branch --track main origin/main
           changed_dirs=$(git diff main --name-only | cut -d/ -f1 | sort -u | grep -v '^.github')
           project_json=$(echo "$changed_dirs" | jq -R . | jq -s . | jq -c .)
           echo "Changed dirs: $project_json"
