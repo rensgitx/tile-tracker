@@ -3,10 +3,9 @@
 import pandas as pd
 from sqlalchemy import create_engine, text, Table, MetaData
 from sqlalchemy.engine import Engine
-import awswrangler as wr
 
-from schemas import spec_dtypes, spec_dates, final_columns
-from state import State
+from .schemas import spec_dtypes, spec_dates, final_columns
+from .state import State
 import logging
 
 from pathlib import Path
@@ -15,7 +14,6 @@ import os
 import re
 from typing import Optional
 from datetime import datetime, timezone
-import pdb
 
 
 logger = logging.getLogger(__name__)
@@ -64,8 +62,12 @@ def run(filedate: str, srcdir: str = "", outdir: str = ""):
     logger.info(f"Connecting to db: {dburl}")
     engine = create_engine(dburl, echo=True)
 
+    # Table to modify
+    metadata = MetaData()
+    table = Table("trackapp_tilesegment", metadata, autoload_with=engine)
+
     logger.info("Start transformation.")
-    df = transform(df, engine)
+    df = transform(df, engine, table)
     logger.info(f"Transform complete. Num records: {df.shape[0]}")
 
     if outdir:
@@ -77,10 +79,8 @@ def run(filedate: str, srcdir: str = "", outdir: str = ""):
         )
         return
 
-    metadata = MetaData()
-    table = Table("trackapp_tilesegment", metadata, autoload_with=engine)
     logger.info(f"Inserting records to {table.name}")
-    upsert(df, table, engine)
+    upsert(df, engine, table)
     logger.info(f"Completed inserting records. {df.shape[0]} records inserted")
 
 
@@ -90,13 +90,8 @@ def retrieve_from_s3(filedate: str, bucket_name: str, prefix: str) -> pd.DataFra
 
     Files are prefixed like s3://{bucket_name}/{key_prefix}/{filedate}
     """
-    s3_path = f"s3://{bucket_name}/{prefix}/{filedate}"
-    files = wr.s3.list_objects(s3_path)
-    dfs = []
-    for file in files:
-        df = wr.s3.read_csv(file)
-        dfs.append(df)
-    return pd.concat(dfs, ignore_index=True)
+    # TO DO
+    return pd.DataFrame(columns=spec_dtypes.keys())
 
 
 def retrieve_local_files(filedate: str, srcdir: str) -> pd.DataFrame:
@@ -139,7 +134,7 @@ def classify_state(
     return State.SETTLE.value
 
 
-def transform(df: pd.DataFrame, engine: Optional[Engine] = None) -> pd.DataFrame:
+def transform(df: pd.DataFrame, engine: Optional[Engine] = None, table: Optional[Table] = None) -> pd.DataFrame:
     """
     Segment the location data
 
@@ -163,7 +158,7 @@ def transform(df: pd.DataFrame, engine: Optional[Engine] = None) -> pd.DataFrame
     # Columns to add: state, segment, start_segment
     for uuid, group in df.groupby(by="uuid"):
         df.drop(group.index, inplace=True)
-        group = transform_group(group, engine)
+        group = transform_group(group, engine, table)
         df = pd.concat([df, group])
 
     # Drop helper columns and reset index
@@ -178,7 +173,7 @@ def transform(df: pd.DataFrame, engine: Optional[Engine] = None) -> pd.DataFrame
 
 
 def transform_group(
-    group: pd.DataFrame, engine: Optional[Engine] = None
+    group: pd.DataFrame, engine: Optional[Engine] = None, table: Optional[Table] = None
 ) -> pd.DataFrame:
     """
     Adds these columns to the input df: 'segment', 'state', 'start_segment'
@@ -230,7 +225,7 @@ def transform_group(
     if engine:
         last_timestamp = group.iloc[0]["last_timestamp_utc"]
         uuid = group.iloc[0]["uuid"]
-        df_prev = get_prev_from_db(uuid, last_timestamp, engine)
+        df_prev = get_prev_from_db(uuid, last_timestamp, engine, table)
 
         # if df_prev has no record, skip classifying the state (keep as State.PENDING)
         if not df_prev.empty:
@@ -247,7 +242,7 @@ def transform_group(
 
 
 def get_prev_from_db(
-    uuid: str, last_timestamp_utc: datetime, engine: Engine
+    uuid: str, last_timestamp_utc: datetime, engine: Engine, table: Table
 ) -> pd.DataFrame:
     query = f"""
     SELECT last_timestamp_utc, latitude, longitude
@@ -262,7 +257,7 @@ def get_prev_from_db(
     return df
 
 
-def upsert(df: pd.DataFrame, table: Table, engine: Engine):
+def upsert(df: pd.DataFrame, engine: Engine, table: Table):
     if df.shape[0] < 1:
         return
     df["updated_at"] = datetime.now(timezone.utc)
@@ -290,7 +285,7 @@ def upsert(df: pd.DataFrame, table: Table, engine: Engine):
         f"""
         INSERT INTO {table.name} ({columns_str})
         VALUES ({columns_str2})
-        ON CONFLICT({','.join(['uuid', 'last_timestamp_utc'])}) 
+        ON CONFLICT({','.join(['uuid', 'last_timestamp_utc'])})
         DO UPDATE SET
             {set_vals_str};
         """
@@ -301,4 +296,5 @@ def upsert(df: pd.DataFrame, table: Table, engine: Engine):
 
 
 if __name__ == "__main__":
+    # pylint: disable = no-value-for-parameter
     run()
