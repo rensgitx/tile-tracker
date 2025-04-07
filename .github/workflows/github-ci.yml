@@ -17,6 +17,10 @@ jobs:
           branch=${{ github.ref }}
           git diff origin/main --name-only
           changed_dirs=$(git diff origin/main --name-only | cut -d/ -f1 | sort -u | grep -v '^.github')
+          if [[ -z "$changed_dirs" ]]; then 
+            echo "No changed projects found."
+            exit 0
+          fi
           project_json=$(echo "$changed_dirs" | jq -R . | jq -s . | jq -c .)
           echo "Changed dirs: $project_json"
           echo "projects=$project_json" >> $GITHUB_OUTPUT
