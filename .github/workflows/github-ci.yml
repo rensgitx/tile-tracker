@@ -13,9 +13,11 @@ jobs:
           fetch-depth: 0
       - name: Get project names of changed files
         id: list-changed-projects
+        if: github.ref != 'refs/heads/main'
         run: |
           git fetch origin main
-          changed_dirs=$(git diff main --name-only | cut -d/ -f1 | sort -u | grep -v '^.github')
+          git branch --track main origin/main
+          changed_dirs=$(git diff origin/main --name-only | cut -d/ -f1 | sort -u | grep -v '^.github')
           echo "Changed directories: $changed_dirs"
           if [[ -z "$changed_dirs" ]]; then 
             echo "No changed projects found."
