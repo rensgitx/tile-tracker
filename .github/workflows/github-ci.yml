@@ -13,14 +13,20 @@ jobs:
           fetch-depth: 0
       - name: Get project names of changed files
         id: list-changed-projects
+        if: github.ref != 'refs/heads/main'
         run: |
-          echo "Current branch: ${{ github.ref }}."
           git fetch origin main
           git branch --track main origin/main
-          changed_dirs=$(git diff main --name-only | cut -d/ -f1 | sort -u | grep -v '^.github')
-          project_json=$(echo "$changed_dirs" | jq -R . | jq -s . | jq -c .)
-          echo "Changed dirs: $project_json"
-          echo "projects=$project_json" >> $GITHUB_OUTPUT
+          changed_dirs=$(git diff origin/main --name-only | cut -d/ -f1 | sort -u | grep -v '^.github')
+          echo "Changed directories: $changed_dirs"
+          if [[ -z "$changed_dirs" ]]; then 
+            echo "No changed projects found."
+            echo "projects=[]" >> $GITHUB_OUTPUT
+          else
+            project_json=$(echo "$changed_dirs" | jq -R . | jq -s . | jq -c .)
+            echo "Changed dirs: $project_json"
+            echo "projects=$project_json" >> $GITHUB_OUTPUT
+          fi
   lint:
     runs-on: ubuntu-latest
     needs: list-changed-directories
