@@ -29,6 +29,7 @@ jobs:
           fi
   lint:
     runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
     needs: list-changed-directories
     strategy:
       matrix:
