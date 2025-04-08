@@ -1,5 +1,9 @@
 #! python
 
+"""
+Process 1 day of data
+"""
+
 import pandas as pd
 from sqlalchemy import create_engine, text, Table, MetaData
 from sqlalchemy.engine import Engine
